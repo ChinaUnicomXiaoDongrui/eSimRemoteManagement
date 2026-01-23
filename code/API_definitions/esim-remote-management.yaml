@@ -52,7 +52,7 @@ tags:
   - name: eSIMRemoteManagement
     description: API operation to eSIM Remote Management
 paths:
-  /profile/listSyn:
+  /profile/list-syn:
     post:
       security:
         - openId:
