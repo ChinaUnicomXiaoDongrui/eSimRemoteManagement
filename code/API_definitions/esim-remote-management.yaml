@@ -19,15 +19,11 @@ info:
         - Deactivation/Disable: Temporarily disable a profile without deleting it from the device.
         - Deletion: Permanently remove an unused or obsolete profile from the device's eSIM chip, freeing up memory.
 
-
-
     # Authorization and authentication
 
     The "Camara Security and Interoperability Profile" provides details of how an API consumer requests an access token. Please refer to Identity and Consent Management (https://github.com/camaraproject/IdentityAndConsentManagement/ ) for the released version of the profile.
 
-
     The specific authorization flows to be used will be agreed upon during the onboarding process, happening between the API consumer and the API provider, taking into account the declared purpose for accessing the API, whilst also being subject to the prevailing legal framework dictated by local legislation.
-
 
     In cases where personal data is processed by the API and users can exercise their rights through mechanisms such as opt-in and/or opt-out, the use of three-legged access tokens is mandatory. This ensures that the API remains in compliance with privacy regulations, upholding the principles of transparency and user-centric privacy-by-design.
 
@@ -35,9 +31,7 @@ info:
 
     The list of error codes in this API specification is not exhaustive. Therefore the API specification may not document some non-mandatory error statuses as indicated in `CAMARA API Design Guide`.
 
-
     Please refer to the `CAMARA_common.yaml` of the Commonalities Release associated to this API version for a complete list of error responses. The applicable Commonalities Release can be identified in the `API Readiness Checklist` document associated to this API version.
-
 
     As a specific rule, error `501 - NOT_IMPLEMENTED` can be only a possible error response if it is explicitly documented in the API.
 
@@ -52,9 +46,9 @@ externalDocs:
 servers:
 - url: "{apiRoot}/eSimRemoteManagement/vwip"
   variables:
-      apiRoot:
-        default: http://localhost:9091
-        description: API root
+    apiRoot:
+      default: http://localhost:9091
+      description: API root
 tags:
   - name: eSIMRemoteManagement
     description: API operation to eSIM Remote Management
@@ -357,7 +351,7 @@ paths:
           $ref: '#/components/responses/Generic404'
         '500':
           $ref: '#/components/responses/Generic500'
-        '503':
+        '403':
           $ref: '#/components/responses/Generic503'
   /profile/download:
     post:
@@ -454,8 +448,8 @@ components:
         sequenceNum:
           type: string
         clientId:
-                  type: string
-                  description: Client ID
+          type: string
+          description: Client ID
         data:
           $ref: '#/components/schemas/ProfileResultQueryReq'
     ProfileResultQueryReq:
@@ -490,12 +484,12 @@ components:
             - 0: executing.
             - 1: Operation success.
             - 2: Operation fail.'
-          enum: [0, 1, 2] 
+          enum: [0, 1, 2]
         eId:
           type: string
         resultMsg:
-                        type: string
-                        description: Result message
+          type: string
+          description: Result message
     BaseCmpReqProfileOperReq:
       type: object
       properties:
@@ -519,26 +513,26 @@ components:
           type: object
           properties:
             eId:
-                type: string
-                description: Device EID
+              type: string
+              description: Device EID
             imei:
-                type: string
-                description: Device IMEI number
+              type: string
+              description: Device IMEI number
             iccid:
-                type: string
-                description: Card ICCID number
+              type: string
+              description: Card ICCID number
             optType:
-                type: integer
-                description: Operation type 1 Enable, 2 Disable, 3 Delete
+              type: integer
+              description: Operation type 1 Enable, 2 Disable, 3 Delete
         initialEvent:
-            type: boolean
-            description: Whether to send initial event
+          type: boolean
+          description: Whether to send initial event
         subscriptionMaxEvents:
-            type: integer
-            description: Maximum subscription events
+          type: integer
+          description: Maximum subscription events
         subscriptionExpireTime:
-            type: string
-            description: Subscription expiration time
+          type: string
+          description: Subscription expiration time
     BaseCmpRespProfileOperResp:
       type: object
       properties:
@@ -585,8 +579,8 @@ components:
         sequenceNum:
           type: string
         clientId:
-                  type: string
-                  description: Client ID
+          type: string
+          description: Client ID
         data:
           $ref: '#/components/schemas/EIdProfileListReq'
     EIdProfileListReq:
@@ -629,83 +623,83 @@ components:
       type: object
       properties:
         protocol:
-            type: string
-            description: Protocol type
+          type: string
+          description: Protocol type
         sink:
-            type: string
-            description: Callback address (sink address for notification reception)
+          type: string
+          description: Callback address (sink address for notification reception)
         types:
-            type: array
-            items:
-                type: string
-                description: List of subscribed event types
+          type: array
+          items:
+            type: string
+          description: List of subscribed event types
         config:
           $ref: '#/components/schemas/ProfileDownloadReq'
     ProfileDownloadReq:
       type: object
       properties:
         subscriptionDetail:
-            type: object
-            properties:
-                eId:
-                    type: string
-                    description: Device EID
-                imei:
-                    type: string
-                    description: Device IMEI number
-                iccid:
-                    type: string
-                    description: Card ICCID number
-                autoEnableType:
-                    type: integer
-                    description: Download and activate option 1 Download and enable
+          type: object
+          properties:
+            eId:
+              type: string
+              description: Device EID
+            imei:
+              type: string
+              description: Device IMEI number
+            iccid:
+              type: string
+              description: Card ICCID number
+            autoEnableType:
+              type: integer
+              description: Download and activate option 1 Download and enable
         initialEvent:
-            type: boolean
-            description: Whether to send initial event
+          type: boolean
+          description: Whether to send initial event
         subscriptionMaxEvents:
-            type: integer
-            description: Maximum subscription events
+          type: integer
+          description: Maximum subscription events
         subscriptionExpireTime:
-            type: string
-            description: Subscription expiration time
+          type: string
+          description: Subscription expiration time
     BaseCmpRespProfileDownloadResp:
       type: object
       properties:
         code:
-            type: integer
-            description: Response code
+          type: integer
+          description: Response code
         message:
-            type: string
-            description: Response message
+          type: string
+          description: Response message
         config:
           $ref: '#/components/schemas/ProfileDownloadResp'
     ProfileDownloadResp:
       type: object
       properties:
         subscriptionDetail:
-            type: object
-            properties:
-                eId:
-                    type: string
-                    description: Device EID
-                imei:
-                    type: string
-                    description: Device IMEI number
-                iccid:
-                    type: string
-                    description: Card ICCID number
-                autoEnableType:
-                    type: integer
-                    description: Download and activate option 1 Download and enable
+          type: object
+          properties:
+            eId:
+              type: string
+              description: Device EID
+            imei:
+              type: string
+              description: Device IMEI number
+            iccid:
+              type: string
+              description: Card ICCID number
+            autoEnableType:
+              type: integer
+              description: Download and activate option 1 Download and enable
         initialEvent:
-                type: boolean
-                description: Whether to send initial event
+          type: boolean
+          description: Whether to send initial event
         subscriptionMaxEvents:
-                type: integer
-                description: Maximum subscription events
+          type: integer
+          description: Maximum subscription events
         subscriptionExpireTime:
-                type: string
-                description: Subscription expiration time
+          type: string
+          description: Subscription expiration time
     BaseCmpReqEIdStatusEnquiryReq:
       type: object
       properties:
@@ -745,7 +739,6 @@ components:
           type: string
         eId:
           type: string
-          
     ErrorInfo:
       type: object
       required:
