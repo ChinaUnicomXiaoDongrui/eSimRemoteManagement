@@ -293,7 +293,7 @@ paths:
             - esim-remote-management:oper
       tags:
         - eSIMRemoteManagement
-      operationId: profileOper
+      operationId: profileOperation
       requestBody:
         content:
           application/json:
