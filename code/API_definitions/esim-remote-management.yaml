@@ -622,7 +622,7 @@ components:
       type: string
       maxLength: 256
       description: Correlator string, UUID format recommended but any string matching the pattern can be used
-      pattern: '^[a-zA-Z0-9-_:;.\/<>{}]{0,256}$'
+      pattern: "^[a-zA-Z0-9_\\-:;./<>{}]{0,256}$"
       example: "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
     Protocol:
       type: string
