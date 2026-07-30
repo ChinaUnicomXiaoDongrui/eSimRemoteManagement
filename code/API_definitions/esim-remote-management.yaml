@@ -38,14 +38,6 @@ info:
 
     The API follows the CAMARA guidelines for request body strictness. Additional properties not defined in the request body schema may be ignored by the server. Clients should not rely on this behavior and should only send the defined properties.
 
-    # Authorization and authentication
-
-    The CAMARA Security and Interoperability Profile defines the authentication and authorization flows. For this API, the following scopes are defined:
-    - esim-remote-management:query - Query profile status and results
-    - esim-remote-management:oper - Perform profile operations (enable, disable, delete)
-    - esim-remote-management:downloadedlist - Query list of downloaded profiles
-    - esim-remote-management:download - Download new profiles
-
   version: wip
   x-camara-commonalities: 0.8.0-rc.2
   license:
@@ -808,3 +800,28 @@ components:
                 status: 500
                 code: INTERNAL
                 message: Unknown server error. Typically a server bug.
+    Generic503:
+      description: Service Unavailable
+      headers:
+        x-correlator:
+          $ref: '#/components/headers/x-correlator'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorInfo'
+              - type: object
+                properties:
+                  status:
+                    enum:
+                      - 503
+                  code:
+                    enum:
+                      - UNAVAILABLE
+          examples:
+            GENERIC_503_UNAVAILABLE:
+              description: Service is not available. Temporary situation usually related to maintenance process in the server side
+              value:
+                status: 503
+                code: UNAVAILABLE
+                message: Service Unavailable.
