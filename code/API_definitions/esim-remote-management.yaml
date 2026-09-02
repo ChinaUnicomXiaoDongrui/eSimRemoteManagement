@@ -29,7 +29,6 @@ info:
 
     In cases where personal data is processed by the API and users can exercise their rights through mechanisms such as opt-in and/or opt-out, the use of three-legged access tokens is mandatory. This ensures that the API remains in compliance with privacy regulations, upholding the principles of transparency and user-centric privacy-by-design.
     <!-- CAMARA:MANDATORY:authorization-and-authentication:END -->
-    
     <!-- CAMARA:MANDATORY:identifying-device-from-access-token:BEGIN -->
     # Identifying the device from the access token
 
@@ -123,9 +122,11 @@ paths:
         profile-download-completed:
           "{$request.body/sink}":
             post:
+              parameters:
+                - $ref: '#/components/parameters/x-correlator'
               requestBody:
                 content:
-                  application/json:
+                  application/cloudevents+json:
                     schema:
                       $ref: '#/components/schemas/ProfileOperationCallback'
               responses:
@@ -222,9 +223,11 @@ paths:
         profile-operation-completed:
           "{$request.body/sink}":
             post:
+              parameters:
+                - $ref: '#/components/parameters/x-correlator'
               requestBody:
                 content:
-                  application/json:
+                  application/cloudevents+json:
                     schema:
                       $ref: '#/components/schemas/ProfileOperationCallback'
               responses:
@@ -283,9 +286,11 @@ paths:
         profile-operation-completed:
           "{$request.body/sink}":
             post:
+              parameters:
+                - $ref: '#/components/parameters/x-correlator'
               requestBody:
                 content:
-                  application/json:
+                  application/cloudevents+json:
                     schema:
                       $ref: '#/components/schemas/ProfileOperationCallback'
               responses:
@@ -343,9 +348,11 @@ paths:
         profile-operation-completed:
           "{$request.body/sink}":
             post:
+              parameters:
+                - $ref: '#/components/parameters/x-correlator'
               requestBody:
                 content:
-                  application/json:
+                  application/cloudevents+json:
                     schema:
                       $ref: '#/components/schemas/ProfileOperationCallback'
               responses:
@@ -531,6 +538,8 @@ components:
       type: object
       description: Callback payload for profile operation completion notification
       properties:
+        type:
+          $ref: '#/components/schemas/ApiEventType'
         taskId:
           type: string
           pattern: "^[a-zA-Z0-9\\-]{1,64}$"
@@ -563,6 +572,12 @@ components:
       pattern: ^[a-zA-Z0-9-_:;.\/<>{}]{0,256}$
       maxLength: 256
       example: "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
+    ApiEventType:
+      type: string
+      description: Named CloudEvent 'type' values for this API
+      enum:
+        - io.camara.esim.profile.download.completed
+        - io.camara.esim.profile.operation.completed
   responses:
     Generic400:
       description: Bad Request
