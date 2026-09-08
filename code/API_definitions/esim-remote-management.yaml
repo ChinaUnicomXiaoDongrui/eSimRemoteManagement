@@ -141,6 +141,13 @@ paths:
                   $ref: "#/components/responses/Generic401"
                 "403":
                   $ref: "#/components/responses/Generic403"
+                "410":
+                  $ref: "#/components/responses/Generic410"
+                "429":
+                  $ref: "#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
   /result/query:
     post:
       security:
@@ -242,6 +249,13 @@ paths:
                   $ref: "#/components/responses/Generic401"
                 "403":
                   $ref: "#/components/responses/Generic403"
+                "410":
+                  $ref: "#/components/responses/Generic410"
+                "429":
+                  $ref: "#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
 
   /disable-profile:
     post:
@@ -305,6 +319,13 @@ paths:
                   $ref: "#/components/responses/Generic401"
                 "403":
                   $ref: "#/components/responses/Generic403"
+                "410":
+                  $ref: "#/components/responses/Generic410"
+                "429":
+                  $ref: "#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
   /delete-profile:
     post:
       security:
@@ -367,6 +388,13 @@ paths:
                   $ref: "#/components/responses/Generic401"
                 "403":
                   $ref: "#/components/responses/Generic403"
+                "410":
+                  $ref: "#/components/responses/Generic410"
+                "429":
+                  $ref: "#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
 
 components:
   securitySchemes:
@@ -374,6 +402,11 @@ components:
       description: OpenID Connect authentication
       type: openIdConnect
       openIdConnectUrl: https://example.com/.well-known/openid-configuration
+    notificationsBearerAuth:
+      description: Bearer authentication for notifications
+      type: http
+      scheme: bearer
+      bearerFormat: "{$request.body#sinkCredential.credentialType}"
 
   parameters:
     x-correlator:
@@ -535,37 +568,43 @@ components:
         statusInfo:
           $ref: "#/components/schemas/ProfileOperStatusInfo"
     ProfileOperationCallback:
-      type: object
       description: Callback payload for profile operation completion notification
-      properties:
-        type:
-          $ref: '#/components/schemas/ApiEventType'
-        taskId:
-          type: string
-          pattern: "^[a-zA-Z0-9\\-]{1,64}$"
-          maxLength: 64
-          description: Task identifier
-        eId:
-          type: string
-          pattern: "^[a-zA-Z0-9\\-]{1,64}$"
-          maxLength: 64
-          description: Device EID (eUICC Identifier)
-        imei:
-          type: string
-          pattern: "^[0-9]{15}$"
-          maxLength: 32
-          description: Device IMEI number
-        iccid:
-          type: string
-          pattern: "^[0-9]{19,20}$"
-          maxLength: 32
-          description: Card ICCID number
-        operResult:
-          type: string
-          description: Operation profile result
-          enum:
-            - SUCCESS
-            - ERROR
+      allOf:
+        - $ref: "#/components/schemas/ApiNotificationEvent"
+        - type: object
+          properties:
+            data:
+              type: object
+              description: Event details
+              properties:
+                taskId:
+                  type: string
+                  pattern: "^[a-zA-Z0-9\\-]{1,64}$"
+                  maxLength: 64
+                  description: Task identifier
+                eId:
+                  type: string
+                  pattern: "^[a-zA-Z0-9\\-]{1,64}$"
+                  maxLength: 64
+                  description: Device EID (eUICC Identifier)
+                imei:
+                  type: string
+                  pattern: "^[0-9]{15}$"
+                  maxLength: 32
+                  description: Device IMEI number
+                iccid:
+                  type: string
+                  pattern: "^[0-9]{19,20}$"
+                  maxLength: 32
+                  description: Card ICCID number
+                operResult:
+                  type: string
+                  description: Operation profile result
+                  enum:
+                    - SUCCESS
+                    - ERROR
+              required:
+                - taskId
     XCorrelator:
       description: Value for the x-correlator
       type: string
@@ -574,10 +613,32 @@ components:
       example: "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
     ApiEventType:
       type: string
-      description: Named CloudEvent 'type' values for this API
+      description: |
+        Enum of API-specific event type strings for this API project.
+        The reverse-DNS prefix `org.camaraproject.<api-name>` makes each value
+        globally unique, so two different API groups can independently define
+        identically-named event types without any collision risk.
       enum:
-        - io.camara.esim.profile.download.completed
-        - io.camara.esim.profile.operation.completed
+        - org.camaraproject.esim-remote-management.v0.profile-download-completed
+        - org.camaraproject.esim-remote-management.v0.profile-operation-completed
+    ApiNotificationEvent:
+      description: |
+        API-specific notification event group.
+        Extends the CloudEvent envelope and constrains `type` to the set of
+        event types defined by this API project.
+        Adding a new event type only requires updating ApiEventType and the
+        discriminator mapping below — the CloudEvent base never changes.
+      allOf:
+        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
+        - type: object
+          properties:
+            type:
+              $ref: "#/components/schemas/ApiEventType"
+      discriminator:
+        propertyName: type
+        mapping:
+          org.camaraproject.esim-remote-management.v0.profile-download-completed: "#/components/schemas/ProfileOperationCallback"
+          org.camaraproject.esim-remote-management.v0.profile-operation-completed: "#/components/schemas/ProfileOperationCallback"
   responses:
     Generic400:
       description: Bad Request
@@ -700,6 +761,63 @@ components:
                 status: 404
                 code: IDENTIFIER_NOT_FOUND
                 message: Device identifier not found.
+    Generic410:
+      description: Gone
+      headers:
+        x-correlator:
+          $ref: "#/components/headers/x-correlator"
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "../common/CAMARA_common.yaml#/components/schemas/ErrorInfo"
+              - type: object
+                properties:
+                  status:
+                    enum:
+                      - 410
+                  code:
+                    enum:
+                      - GONE
+          examples:
+            GENERIC_410_GONE:
+              description: Use in notifications flow to allow API Consumer to indicate that its callback is no longer available
+              value:
+                status: 410
+                code: GONE
+                message: Access to the target resource is no longer available.
+    Generic429:
+      description: Quota Exceed or Too Many Requests
+      headers:
+        x-correlator:
+          $ref: "#/components/headers/x-correlator"
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "../common/CAMARA_common.yaml#/components/schemas/ErrorInfo"
+              - type: object
+                properties:
+                  status:
+                    enum:
+                      - 429
+                  code:
+                    enum:
+                      - QUOTA_EXCEEDED
+                      - TOO_MANY_REQUESTS
+          examples:
+            GENERIC_429_QUOTA_EXCEEDED:
+              description: Request is rejected due to exceeding a business quota limit
+              value:
+                status: 429
+                code: QUOTA_EXCEEDED
+                message: Out of resource quota.
+            GENERIC_429_TOO_MANY_REQUESTS:
+              description: Access to the API has been temporarily blocked due to rate or spike arrest limits being reached
+              value:
+                status: 429
+                code: TOO_MANY_REQUESTS
+                message: Rate limit reached.
     Generic422:
       description: Unprocessable Content
       headers:
