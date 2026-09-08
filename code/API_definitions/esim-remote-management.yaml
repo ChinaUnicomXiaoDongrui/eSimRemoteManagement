@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: eSIM Remote Management
+  title: Esim Remote Management
   description: |
     Provide eSIM-based remote management capability, allowing users to remotely manage the status of profiles on the device's eUICC and complete remote operations such as downloading, activating, de-activating or deleting.
 
@@ -67,7 +67,7 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 externalDocs:
-  description: Project documentation at CAMARA
+  description: Product documentation at CAMARA
   url: https://github.com/camaraproject/eSimRemoteManagement
 servers:
   - url: "{apiRoot}/esim-remote-management/vwip"
@@ -76,8 +76,8 @@ servers:
         default: http://localhost:9091
         description: API root, defined by the service provider, e.g. `api.example.com` or `api.example.com/somepath`
 tags:
-  - name: eSIM Remote Management
-    description: API operations for eSIM Remote Management
+  - name: Esim Remote Management
+    description: API operations for Esim Remote Management
 paths:
   /download:
     post:
@@ -85,7 +85,7 @@ paths:
         - openId:
             - esim-remote-management:download
       tags:
-        - eSIM Remote Management
+        - Esim Remote Management
       summary: Download profile
       description: |
         Download and optionally install a new eSIM profile to the device. This is an asynchronous operation that returns a task ID for status tracking.
@@ -154,7 +154,7 @@ paths:
         - openId:
             - esim-remote-management:query
       tags:
-        - eSIM Remote Management
+        - Esim Remote Management
       summary: Query profile operation result
       description: |
         Query the result of an profile operation using the task ID returned from a operation request.
@@ -193,7 +193,7 @@ paths:
         - openId:
             - esim-remote-management:enable-profile
       tags:
-        - eSIM Remote Management
+        - Esim Remote Management
       summary: Enable a profile
       description: |
         Enable an eSIM profile. This is an asynchronous operation that returns a task ID for status tracking.
@@ -263,7 +263,7 @@ paths:
         - openId:
             - esim-remote-management:disable-profile
       tags:
-        - eSIM Remote Management
+        - Esim Remote Management
       summary: Disable a profile
       description: |
         Disable an eSIM profile. This is an asynchronous operation that returns a task ID for status tracking.
@@ -332,7 +332,7 @@ paths:
         - openId:
             - esim-remote-management:delete-profile
       tags:
-        - eSIM Remote Management
+        - Esim Remote Management
       summary: Delete a profile
       description: |
         Delete an eSIM profile. This is an asynchronous operation that returns a task ID for status tracking.
