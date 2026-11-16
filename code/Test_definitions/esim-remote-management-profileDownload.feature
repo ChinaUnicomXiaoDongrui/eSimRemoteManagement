@@ -1,92 +1,215 @@
-Feature: CAMARA eSIM Remote Management API vwip - Operation profileDownload
+Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
 
-    # Input to be provided by the implementation to the tester
-    #
-    #
-    # Implementation indications:
-    #
-    # References to OAS spec schemas refer to schemas specifies in esim-remote-management.yaml, version vwip
+  # Input to be provided by the implementation to the tester
+  #
+  # Implementation indications:
+  # * apiRoot: API root of the server URL
+  # * Whether the implementation supports asynchronous notification of the operation outcome
+  #   via the optional `sink` parameter, and the behaviour when `sink` is not supported
+  #
+  # Testing assets:
+  # * A valid EID of a device with an eUICC, on which a new profile may be downloaded
+  # * A valid IMEI of a device with an eUICC
+  # * A valid ICCID of a profile already installed on that device
+  # * An EID and an IMEI that are schema-compliant but do not identify any existing device
+  # * A valid access token including the scope "esim-remote-management:download-profile"
+  # * An access token that does not include that scope
+  # * A sink URL able to receive and record notifications in CloudEvents format
+  # * A device for which the service is not applicable
+  # * A valid access token which does not identify a single device
+  #
+  # References to OAS spec schemas refer to schemas specified in esim-remote-management.yaml, version vwip
 
   Background: Common profileDownload setup
     Given an environment at "apiRoot"
-    And the resource "/esim-remote-management/vwip/profile/download"
+    And the resource "/esim-remote-management/vwip/download"
     And the header "Content-Type" is set to "application/json"
     And the header "Authorization" is set to a valid access token
     And the header "x-correlator" complies with the schema at "#/components/schemas/XCorrelator"
-    And the request body is set based on the OAS schema at "/components/schemas/BaseCmpReqProfileDownloadReq"
-    And the request body property "$.protocol" is set to "HTTP"
-    And the request body property "$.sink" is set to a valid callback URI
-    And the request body property "$.types" is set to a list of subscribed event types
-    And the request body property "$.config.subscriptionDetail.eId" is set to a valid EID
-    And the request body property "$.config.subscriptionDetail.imei" is set to a valid IMEI
-    And the request body property "$.config.subscriptionDetail.iccid" is set to a valid ICCID
-    And the request body property "$.config.subscriptionDetail.autoEnableType" is set to a valid download option (1 Download and enable)
+    And the request body is set based on the OAS schema at "#/components/schemas/ProfileOperationRequest"
+    And the request body property "$.device.eId" is set to a valid EID
 
 # Success scenarios
 
-  @esim_remote_management_profileDownload_01_generic_success_scenario
-  Scenario: Common validations for any success scenario
-    Given all request body properties are set to valid values
+  @esim_remote_management_profileDownload_01_success
+  Scenario: Download a profile and receive a task identifier
+    Given a device with an eUICC on which a new profile may be downloaded
     When the request "profileDownload" is sent
-    Then the response status code is 200
+    Then the response status code is 201
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "/components/schemas/BaseCmpRespProfileDownloadResp"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response header "Location" exists
+    And the response body complies with the OAS schema at "#/components/schemas/ProfileOperationResult"
+    And the response property "$.taskId" exists
+    And the response property "$.status" exists
+
+  @esim_remote_management_profileDownload_02_device_identifier_variants
+  Scenario Outline: Download a profile using a single <identifier_type> as device identifier
+    Given the request body property "$.device.eId" is not included
+    And the request body property "$.device.<identifier_field>" is set to a valid <identifier_type>
+    When the request "profileDownload" is sent
+    Then the response status code is 201
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response body complies with the OAS schema at "#/components/schemas/ProfileOperationResult"
+    And the response property "$.taskId" exists
+
+    Examples:
+      | identifier_type | identifier_field |
+      | IMEI            | imei             |
+      | ICCID           | iccid            |
+
+  @esim_remote_management_profileDownload_03_notification_success
+  Scenario: Outcome of the profile download is notified to the provided sink
+    Given the request body property "$.sink" is set to a valid callback URI
+    When the request "profileDownload" is sent
+    Then the response status code is 201
+    And the response property "$.taskId" exists
+    And within 30 seconds a notification is received at the sink
+    And the notification property "$.type" is "org.camaraproject.esim-remote-management.v0.profile-download-completed"
+    And the notification body complies with the OAS schema at "#/components/schemas/ProfileOperationCallback"
+    And the notification property "$.data.taskId" has the same value as the response property "$.taskId"
 
 # Error scenarios
 
-  @esim_remote_management_profileDownload_02_invalid_argument_scenario
-  Scenario: Error response for invalid argument in request body
-    Given a request body property is invalid, such as illegal character or format error
+  @esim_remote_management_profileDownload_04_device_without_identifier
+  Scenario: Download is rejected when the device object contains no identifier
+    Given the request body property "$.device" is set to: {}
     When the request "profileDownload" is sent
     Then the response status code is 400
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
     And the response property "$.status" is 400
     And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" is "Client specified an invalid argument, request body or query param."
+    And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_03_out_of_range_scenario
-  Scenario: Error response where request body parameters are out of range
-    Given a request body property is out of range, for example an invalid autoEnableType value
+  @esim_remote_management_profileDownload_05_identifier_not_schema_compliant
+  Scenario Outline: Download is rejected when <property> does not comply with the schema
+    Given the request body property "<property>" does not comply with the OAS schema at "<schema>"
     When the request "profileDownload" is sent
     Then the response status code is 400
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
     And the response property "$.status" is 400
-    And the response property "$.code" is "OUT_OF_RANGE"
-    And the response property "$.message" is "Client specified an invalid range."
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_04_missing_authorization_scenario
-  Scenario: Error response for no header "Authorization"
-    Given the header "Authorization" is not sent
-    And all request body properties are set to valid values
+    Examples:
+      | property        | schema                                |
+      | $.device.eId    | #/components/schemas/Eid              |
+      | $.device.imei   | #/components/schemas/Imei             |
+      | $.device.iccid  | #/components/schemas/Iccid            |
+
+  @esim_remote_management_profileDownload_06_unknown_property
+  Scenario: Download is rejected when the request body contains an undeclared property
+    Given the request body property "$.unknownProperty" is set to "x"
+    When the request "profileDownload" is sent
+    Then the response status code is 400
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_07_invalid_token
+  Scenario: Download is rejected without a valid access token
+    Given the header "Authorization" is set to an invalid access token
     When the request "profileDownload" is sent
     Then the response status code is 401
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
     And the response property "$.status" is 401
     And the response property "$.code" is "UNAUTHENTICATED"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_05_missing_access_token_scope_scenario
-  Scenario: Missing access token scope
-    Given the header "Authorization" is set to an access token that does not include scope esim-remote-management:download
+  @esim_remote_management_profileDownload_08_missing_scope
+  Scenario: Download is rejected when the access token lacks the required scope
+    Given the header "Authorization" is set to a valid access token that does not include the scope "esim-remote-management:download-profile"
     When the request "profileDownload" is sent
     Then the response status code is 403
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
     And the response property "$.status" is 403
     And the response property "$.code" is "PERMISSION_DENIED"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_06_not_found_scenario
-  Scenario: Not found
-    Given request body is in the correct format, but the specified device identifiers (EID, IMEI, ICCID) cannot be found
+  @esim_remote_management_profileDownload_09_identifier_not_found
+  Scenario: Download is rejected when the device identifier does not match any device
+    Given the request body property "$.device.eId" is compliant with the schema but does not identify an existing device
     When the request "profileDownload" is sent
     Then the response status code is 404
     And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
     And the response property "$.status" is 404
-    And the response property "$.code" is "NOT_FOUND"
+    And the response property "$.code" is "IDENTIFIER_NOT_FOUND"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_10_event_notifications_not_supported
+  Scenario: Download is rejected when a sink is provided but notifications are not supported
+    # Only applicable when the implementation does not support notification delivery
+    Given the request body property "$.sink" is set to a valid callback URI
+    When the request "profileDownload" is sent
+    Then the response status code is 422
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 422
+    And the response property "$.code" is "EVENT_NOTIFICATIONS_NOT_SUPPORTED"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_11_unnecessary_identifier
+  Scenario: Download is rejected when the device is identified both by the token and in the request body
+    Given the header "Authorization" is set to a valid three-legged access token identifying the device
+    And the request body property "$.device.eId" is set to a valid EID
+    When the request "profileDownload" is sent
+    Then the response status code is 422
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 422
+    And the response property "$.code" is "UNNECESSARY_IDENTIFIER"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_12_missing_identifier
+  Scenario: Download is rejected when the device cannot be identified
+    Given the header "Authorization" is set to a valid access token which does not identify a single device
+    And the request body property "$.device" is not included
+    When the request "profileDownload" is sent
+    Then the response status code is 422
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 422
+    And the response property "$.code" is "MISSING_IDENTIFIER"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_13_unsupported_identifier
+  Scenario: Download is rejected when none of the provided device identifiers is supported
+    Given that some types of device identifiers are not supported by the implementation
+    And the request body property "$.device" only includes device identifiers not supported by the implementation
+    When the request "profileDownload" is sent
+    Then the response status code is 422
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 422
+    And the response property "$.code" is "UNSUPPORTED_IDENTIFIER"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_14_service_not_applicable
+  Scenario: Download is rejected when the service is not available for the device
+    Given that the service is not available for all devices commercialized by the operator
+    And a valid device, identified by the token or provided in the request body, for which the service is not applicable
+    When the request "profileDownload" is sent
+    Then the response status code is 422
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 422
+    And the response property "$.code" is "SERVICE_NOT_APPLICABLE"
+    And the response property "$.message" contains a user friendly text
+
+  @esim_remote_management_profileDownload_15_too_many_requests
+  Scenario: Download is rejected when the rate limit enforced by the API Provider is exceeded
+    # This test only applies if the API Provider enforces a rate limit on the API
+    Given the API consumer has exceeded the rate limit enforced by the API Provider
+    When the request "profileDownload" is sent
+    Then the response status code is 429
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 429
+    And the response property "$.code" is "TOO_MANY_REQUESTS"
     And the response property "$.message" contains a user friendly text
