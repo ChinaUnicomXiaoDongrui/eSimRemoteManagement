@@ -544,18 +544,22 @@ components:
     ProfileOperationTaskId:
       type: string
       pattern: "^[a-zA-Z0-9-]{1,64}$"
+      maxLength: 64
       description: Identifier of the asynchronous task returned by the API Provider
     Eid:
       type: string
       pattern: "^[0-9]{32}$"
+      maxLength: 32
       description: eUICC Identifier (EID), 32 decimal digits as defined in GSMA SGP.02
     Imei:
       type: string
       pattern: "^[0-9]{15}$"
+      maxLength: 15
       description: International Mobile Equipment Identity (IMEI) of the device, 15 decimal digits
     Iccid:
       type: string
       pattern: "^[0-9]{19,20}$"
+      maxLength: 20
       description: Integrated Circuit Card Identifier (ICCID) of the profile, 19 or 20 decimal digits
     ProfileOperDevice:
       type: object
