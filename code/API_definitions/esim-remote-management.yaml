@@ -126,7 +126,7 @@ paths:
 
         If the optional `sink` is provided in the request body, the API provider
         notifies the API consumer of the operation outcome via that sink;
-        otherwise the outcome is retrieved with `/result/query`.
+        otherwise the outcome is retrieved with `/results/{taskId}`.
       parameters:
         - $ref: "../common/CAMARA_common.yaml#/components/parameters/x-correlator"
       operationId: profileDownload
@@ -144,7 +144,7 @@ paths:
               $ref: "../common/CAMARA_common.yaml#/components/headers/x-correlator"
             Location:
               description: |
-                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/result/query?taskId={taskId}`.
+                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/results/{taskId}`.
               schema:
                 type: string
                 format: uri-reference
@@ -195,8 +195,8 @@ paths:
               security:
                 - {}
                 - notificationsBearerAuth: []
-  /result/query:
-    post:
+  /results/{taskId}:
+    get:
       security:
         - openId:
             - esim-remote-management:query-result
@@ -204,16 +204,21 @@ paths:
         - Esim Remote Management
       summary: Query profile operation result
       description: |
-        Query the result of an profile operation using the task ID returned from a operation request.
+        Query the result of a profile operation using the task ID returned in the
+        `Location` header of the response to the corresponding asynchronous
+        operation request.
+
+        The operation is repeated by the API consumer until the returned `status`
+        is no longer `PENDING`.
       parameters:
         - $ref: "../common/CAMARA_common.yaml#/components/parameters/x-correlator"
+        - name: taskId
+          in: path
+          required: true
+          description: Task identifier of the asynchronous profile operation, as returned in the `Location` header of the operation response
+          schema:
+            $ref: '#/components/schemas/ProfileOperationTaskId'
       operationId: profileResultQuery
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProfileResultQueryRequest'
-        required: true
       responses:
         "200":
           description: OK
@@ -247,7 +252,7 @@ paths:
 
         If the optional `sink` is provided in the request body, the API provider
         notifies the API consumer of the operation outcome via that sink;
-        otherwise the outcome is retrieved with `/result/query`.
+        otherwise the outcome is retrieved with `/results/{taskId}`.
       parameters:
         - $ref: "../common/CAMARA_common.yaml#/components/parameters/x-correlator"
       operationId: profileEnable
@@ -265,7 +270,7 @@ paths:
               $ref: "../common/CAMARA_common.yaml#/components/headers/x-correlator"
             Location:
               description: |
-                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/result/query?taskId={taskId}`.
+                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/results/{taskId}`.
               schema:
                 type: string
                 format: uri-reference
@@ -330,7 +335,7 @@ paths:
 
         If the optional `sink` is provided in the request body, the API provider
         notifies the API consumer of the operation outcome via that sink;
-        otherwise the outcome is retrieved with `/result/query`.
+        otherwise the outcome is retrieved with `/results/{taskId}`.
       parameters:
         - $ref: "../common/CAMARA_common.yaml#/components/parameters/x-correlator"
       operationId: profileDisable
@@ -348,7 +353,7 @@ paths:
               $ref: "../common/CAMARA_common.yaml#/components/headers/x-correlator"
             Location:
               description: |
-                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/result/query?taskId={taskId}`.
+                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/results/{taskId}`.
               schema:
                 type: string
                 format: uri-reference
@@ -412,7 +417,7 @@ paths:
 
         If the optional `sink` is provided in the request body, the API provider
         notifies the API consumer of the operation outcome via that sink;
-        otherwise the outcome is retrieved with `/result/query`.
+        otherwise the outcome is retrieved with `/results/{taskId}`.
       parameters:
         - $ref: "../common/CAMARA_common.yaml#/components/parameters/x-correlator"
       operationId: profileDelete
@@ -430,7 +435,7 @@ paths:
               $ref: "../common/CAMARA_common.yaml#/components/headers/x-correlator"
             Location:
               description: |
-                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/result/query?taskId={taskId}`.
+                URL of the task resource for retrieving the result of this operation. The URL follows the pattern `/results/{taskId}`.
               schema:
                 type: string
                 format: uri-reference
@@ -513,22 +518,26 @@ components:
             delivery, the request MUST be rejected with
             `422 EVENT_NOTIFICATIONS_NOT_SUPPORTED` and the operation MUST NOT
             be started. The API consumer can then retry without `sink` and
-            retrieve the outcome via `/result/query` instead.
+            retrieve the outcome via `/results/{taskId}` instead.
           allOf:
             - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/Sink"
         sinkCredential:
           $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-    ProfileResultQueryRequest:
-      type: object
-      description: Request body for querying the result of a profile operation
-      required:
-        - taskId
-      properties:
-        taskId:
-          $ref: '#/components/schemas/ProfileOperationTaskId'
     ProfileOperationResult:
       type: object
-      description: Result of an asynchronous profile operation
+      description: |
+        Result of an asynchronous profile operation.
+
+        Only the following combinations of `status` and `statusInfo` are valid:
+
+        | `status`  | `statusInfo`                                   |
+        |-----------|------------------------------------------------|
+        | `PENDING` | must be omitted                                |
+        | `SUCCESS` | must be omitted                                |
+        | `ERROR`   | `ICCID_NOT_FOUND` or `OPERATION_UNKNOWN_ERROR` |
+
+        `PENDING` is returned in the response of the operation request itself and
+        by `/results/{taskId}` until the operation has been completed.
       required:
         - taskId
         - status
@@ -594,25 +603,26 @@ components:
     ProfileOperStatus:
       description: |
         Status of the profile operation
+        * `PENDING` - The operation has been accepted and has not been completed yet
         * `SUCCESS` - The operation completed successfully
         * `ERROR` - The operation failed
       type: string
       enum:
+        - PENDING
         - SUCCESS
         - ERROR
     ProfileOperStatusInfo:
       description: |
-        Additional information about the profile operation status
-        * `OPERATION_COMPLETED` - The operation has been completed
+        Error information about the profile operation.
+
+        This property is only present when `status` is `ERROR`; it must be omitted
+        when `status` is `PENDING` or `SUCCESS`.
         * `ICCID_NOT_FOUND` - The specified iccid does not exist
         * `OPERATION_UNKNOWN_ERROR` - The operation failed due to an unknown error
-        * `OPERATION_PENDING` - The operation request is pending for validation and verification
       type: string
       enum:
-        - OPERATION_COMPLETED
         - ICCID_NOT_FOUND
         - OPERATION_UNKNOWN_ERROR
-        - OPERATION_PENDING
 
     ProfileOperationCallback:
       description: Callback payload for profile operation completion notification
@@ -634,7 +644,11 @@ components:
                   $ref: '#/components/schemas/Iccid'
                 operResult:
                   type: string
-                  description: Operation profile result
+                  description: |
+                    Final result of the operation. Only `SUCCESS` and `ERROR` are
+                    possible, as a notification is only sent once the operation has
+                    been completed (`PENDING` operations do not generate a
+                    notification).
                   enum:
                     - SUCCESS
                     - ERROR

@@ -16,7 +16,6 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileEnable
   # * An access token that does not include that scope
   # * A sink URL able to receive and record notifications in CloudEvents format
   # * A device for which the service is not applicable
-  # * A valid access token which does not identify a single device
   #
   # References to OAS spec schemas refer to schemas specified in esim-remote-management.yaml, version vwip
 
@@ -43,17 +42,6 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileEnable
     And the response body complies with the OAS schema at "#/components/schemas/ProfileOperationResult"
     And the response property "$.taskId" exists
     And the response property "$.status" exists
-
-  @esim_remote_management_profileEnable_02_imei_as_device_identifier
-  Scenario: Enable a profile on a device identified by IMEI instead of EID
-    Given the request body property "$.device.eId" is not included
-    And the request body property "$.device.imei" is set to a valid IMEI
-    When the request "profileEnable" is sent
-    Then the response status code is 201
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "#/components/schemas/ProfileOperationResult"
-    And the response property "$.taskId" exists
 
   @esim_remote_management_profileEnable_03_notification_success
   Scenario: Outcome of the profile enable operation is notified to the provided sink
@@ -149,29 +137,22 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileEnable
     And the response property "$.code" is "EVENT_NOTIFICATIONS_NOT_SUPPORTED"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileEnable_11_unnecessary_identifier
-  Scenario: Enable is rejected when the device is identified both by the token and in the request body
-    Given the header "Authorization" is set to a valid three-legged access token identifying the device
-    And the request body property "$.device.eId" is set to a valid EID
+  @esim_remote_management_profileEnable_12_missing_required_property
+  Scenario Outline: Enable is rejected when a required property is missing
+    Given the request body property "<required_property>" is not included
     When the request "profileEnable" is sent
-    Then the response status code is 422
+    Then the response status code is 400
     And the response header "Content-Type" is "application/json"
     And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response property "$.status" is 422
-    And the response property "$.code" is "UNNECESSARY_IDENTIFIER"
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileEnable_12_missing_identifier
-  Scenario: Enable is rejected when the device cannot be identified
-    Given the header "Authorization" is set to a valid access token which does not identify a single device
-    And the request body property "$.device" is not included
-    When the request "profileEnable" is sent
-    Then the response status code is 422
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response property "$.status" is 422
-    And the response property "$.code" is "MISSING_IDENTIFIER"
-    And the response property "$.message" contains a user friendly text
+    Examples:
+      | required_property |
+      | $.device          |
+      | $.device.eId      |
+      | $.device.iccid    |
 
   @esim_remote_management_profileEnable_13_unsupported_identifier
   Scenario: Enable is rejected when none of the provided device identifiers is supported
@@ -188,7 +169,7 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileEnable
   @esim_remote_management_profileEnable_14_service_not_applicable
   Scenario: Enable is rejected when the service is not available for the device
     Given that the service is not available for all devices commercialized by the operator
-    And a valid device, identified by the token or provided in the request body, for which the service is not applicable
+    And a valid device, identified in the request body, for which the service is not applicable
     When the request "profileEnable" is sent
     Then the response status code is 422
     And the response header "Content-Type" is "application/json"
