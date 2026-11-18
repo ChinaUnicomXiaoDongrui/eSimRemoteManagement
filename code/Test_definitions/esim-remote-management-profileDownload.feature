@@ -43,6 +43,23 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
     And the response property "$.taskId" exists
     And the response property "$.status" exists
 
+  @esim_remote_management_profileDownload_02_device_identifier_variants
+  Scenario Outline: Download is rejected when the device is identified only by <identifier_type>
+    Given the request body property "$.device.eId" is not included
+    And the request body property "$.device.<identifier_field>" is set to a valid <identifier_type>
+    When the request "profileDownload" is sent
+    Then the response status code is 400
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
+
+    Examples:
+      | identifier_type | identifier_field |
+      | IMEI            | imei             |
+      | ICCID           | iccid            |
+
   @esim_remote_management_profileDownload_03_notification_success
   Scenario: Outcome of the profile download is notified to the provided sink
     Given the request body property "$.sink" is set to a valid callback URI
@@ -152,7 +169,6 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
     Examples:
       | required_property |
       | $.device          |
-      | $.device.eId      |
       | $.device.iccid    |
 
   @esim_remote_management_profileDownload_13_unsupported_identifier

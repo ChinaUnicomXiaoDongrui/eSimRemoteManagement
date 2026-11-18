@@ -43,6 +43,18 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDelete
     And the response property "$.taskId" exists
     And the response property "$.status" exists
 
+  @esim_remote_management_profileDelete_02_imei_as_device_identifier
+  Scenario: Delete is rejected when the device is identified by IMEI instead of EID
+    Given the request body property "$.device.eId" is not included
+    And the request body property "$.device.imei" is set to a valid IMEI
+    When the request "profileDelete" is sent
+    Then the response status code is 400
+    And the response header "Content-Type" is "application/json"
+    And the response header "x-correlator" has the same value as the request header "x-correlator"
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
+
   @esim_remote_management_profileDelete_03_notification_success
   Scenario: Outcome of the profile delete operation is notified to the provided sink
     Given the request body property "$.sink" is set to a valid callback URI
@@ -151,7 +163,6 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDelete
     Examples:
       | required_property |
       | $.device          |
-      | $.device.eId      |
       | $.device.iccid    |
 
   @esim_remote_management_profileDelete_13_unsupported_identifier
