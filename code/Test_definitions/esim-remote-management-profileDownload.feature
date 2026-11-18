@@ -10,13 +10,12 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
   # Testing assets:
   # * A valid EID of a device with an eUICC, on which a new profile may be downloaded
   # * A valid IMEI of a device with an eUICC
-  # * A valid ICCID of a profile already installed on that device
+  # * A valid ICCID of a profile that may be downloaded to that device
   # * An EID and an IMEI that are schema-compliant but do not identify any existing device
   # * A valid access token including the scope "esim-remote-management:download-profile"
   # * An access token that does not include that scope
   # * A sink URL able to receive and record notifications in CloudEvents format
   # * A device for which the service is not applicable
-  # * A valid access token which does not identify a single device
   #
   # References to OAS spec schemas refer to schemas specified in esim-remote-management.yaml, version vwip
 
@@ -28,6 +27,7 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
     And the header "x-correlator" complies with the schema at "#/components/schemas/XCorrelator"
     And the request body is set based on the OAS schema at "#/components/schemas/ProfileOperationRequest"
     And the request body property "$.device.eId" is set to a valid EID
+    And the request body property "$.device.iccid" is set to a valid ICCID of a profile that may be downloaded to the device
 
 # Success scenarios
 
@@ -44,15 +44,16 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
     And the response property "$.status" exists
 
   @esim_remote_management_profileDownload_02_device_identifier_variants
-  Scenario Outline: Download a profile using a single <identifier_type> as device identifier
+  Scenario Outline: Download is rejected when the device is identified only by <identifier_type>
     Given the request body property "$.device.eId" is not included
     And the request body property "$.device.<identifier_field>" is set to a valid <identifier_type>
     When the request "profileDownload" is sent
-    Then the response status code is 201
+    Then the response status code is 400
     And the response header "Content-Type" is "application/json"
     And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "#/components/schemas/ProfileOperationResult"
-    And the response property "$.taskId" exists
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
 
     Examples:
       | identifier_type | identifier_field |
@@ -154,29 +155,21 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
     And the response property "$.code" is "EVENT_NOTIFICATIONS_NOT_SUPPORTED"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_11_unnecessary_identifier
-  Scenario: Download is rejected when the device is identified both by the token and in the request body
-    Given the header "Authorization" is set to a valid three-legged access token identifying the device
-    And the request body property "$.device.eId" is set to a valid EID
+  @esim_remote_management_profileDownload_12_missing_required_property
+  Scenario Outline: Download is rejected when a required property is missing
+    Given the request body property "<required_property>" is not included
     When the request "profileDownload" is sent
-    Then the response status code is 422
+    Then the response status code is 400
     And the response header "Content-Type" is "application/json"
     And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response property "$.status" is 422
-    And the response property "$.code" is "UNNECESSARY_IDENTIFIER"
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @esim_remote_management_profileDownload_12_missing_identifier
-  Scenario: Download is rejected when the device cannot be identified
-    Given the header "Authorization" is set to a valid access token which does not identify a single device
-    And the request body property "$.device" is not included
-    When the request "profileDownload" is sent
-    Then the response status code is 422
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has the same value as the request header "x-correlator"
-    And the response property "$.status" is 422
-    And the response property "$.code" is "MISSING_IDENTIFIER"
-    And the response property "$.message" contains a user friendly text
+    Examples:
+      | required_property |
+      | $.device          |
+      | $.device.iccid    |
 
   @esim_remote_management_profileDownload_13_unsupported_identifier
   Scenario: Download is rejected when none of the provided device identifiers is supported
@@ -193,7 +186,7 @@ Feature: CAMARA eSIM Remote Management API, vwip - Operation profileDownload
   @esim_remote_management_profileDownload_14_service_not_applicable
   Scenario: Download is rejected when the service is not available for the device
     Given that the service is not available for all devices commercialized by the operator
-    And a valid device, identified by the token or provided in the request body, for which the service is not applicable
+    And a valid device, identified in the request body, for which the service is not applicable
     When the request "profileDownload" is sent
     Then the response status code is 422
     And the response header "Content-Type" is "application/json"
